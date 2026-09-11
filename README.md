@@ -249,6 +249,8 @@ panel. This is the one thing worth checking first on your own account.
   layer is UI and platform glue.
 - **Not built, by design:** the Tizen/webOS client, any backend, and any
   multi-tenant or white-label admin panel.
+- **Remote list upload** (Smart IPTV / siptv.eu style device-code portal) is
+  designed but deliberately deferred — see [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ---
 
