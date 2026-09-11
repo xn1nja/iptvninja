@@ -56,12 +56,16 @@ nothing else.
 
 ## Running it
 
-Requires Node 20+.
+Requires Node 20+. Works on Linux, macOS and Windows.
 
 ```bash
-npm install          # installs both workspaces
+npm install          # installs both workspaces — run from the repo root
 npm start            # → npx expo start in /mobile
 ```
+
+`npm install` must be run from the repo root, not from `/mobile`: this is an
+npm workspaces monorepo, and `/mobile` resolves `@iptv-ninja/core` through a
+symlink that only a root-level install creates.
 
 Other useful commands, all from the repo root:
 
@@ -167,6 +171,7 @@ a source deletes its favourites too and never touches your provider account.
 - `npx expo-doctor` — 19/21. The two failures are network fetches (Expo's config
   schema and the React Native Directory) blocked in the sandbox this was built
   in, not project problems.
+- `npm install` / `npm run typecheck` / `npm test` on Windows (Node 20).
 
 **Not verified: playback against a real provider.** There is no IPTV account and
 no device or emulator in the build environment, so no stream has actually been

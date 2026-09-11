@@ -1,0 +1,14 @@
+# Keep line endings stable across the Linux/macOS/Windows checkouts this repo
+# is developed on. Without this, Git for Windows rewrites files to CRLF on
+# checkout and every cross-platform edit shows up as a whole-file diff.
+* text=auto eol=lf
+
+# Never touch binary assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary

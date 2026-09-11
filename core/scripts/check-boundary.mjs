@@ -6,7 +6,8 @@
  * "core is plain TypeScript" rule is enforced rather than merely documented.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const FORBIDDEN = [
   'react',
@@ -18,7 +19,10 @@ const FORBIDDEN = [
   '@react-native-async-storage/async-storage',
 ];
 
-const SRC = new URL('../src/', import.meta.url).pathname;
+// `fileURLToPath`, not `new URL(...).pathname`: on Windows the latter yields
+// "/C:/..." with a leading slash, which `join` then turns into "C:\C:\...".
+const PACKAGE_ROOT = resolve(fileURLToPath(import.meta.url), '..', '..');
+const SRC = join(PACKAGE_ROOT, 'src');
 
 function walk(dir) {
   const files = [];
@@ -43,7 +47,7 @@ for (const file of walk(SRC)) {
       ? specifier.split('/').slice(0, 2).join('/')
       : specifier.split('/')[0];
     if (FORBIDDEN.includes(root) || FORBIDDEN.includes(specifier)) {
-      violations.push(`${file}: imports "${specifier}"`);
+      violations.push(`${relative(PACKAGE_ROOT, file)}: imports "${specifier}"`);
     }
   }
 }

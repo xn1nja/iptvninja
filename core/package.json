@@ -17,8 +17,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run check:boundary && tsc -p tsconfig.test.json && node --test dist-test/test/*.test.js",
-    "clean": "rm -rf dist dist-test",
+    "test": "npm run check:boundary && tsc -p tsconfig.test.json && cd dist-test && node --test",
+    "clean": "node -e \"const fs=require('fs');for(const d of ['dist','dist-test'])fs.rmSync(d,{recursive:true,force:true})\"",
     "check:boundary": "node scripts/check-boundary.mjs"
   },
   "devDependencies": {
