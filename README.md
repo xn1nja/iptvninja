@@ -206,6 +206,13 @@ a source deletes its favourites too and never touches your provider account.
 - **Player** — `expo-video`, HLS live streams, play/pause, fullscreen, back,
   jump-to-live, overlay with channel logo/name and the current programme,
   auto-hiding after 4 seconds.
+- **Playback diagnostics.** When a stream fails, the app fetches the playlist
+  itself and reports what the server actually sent — a valid playlist, an empty
+  one, an HTML error page (expired line or connection limit), an HTTP status, or
+  an unreachable host — rather than a bare "playback failed". It offers a
+  one-tap switch between the `.m3u8` and `.ts` containers, and it warns when
+  running under Expo Go, whose own network permissions block plain-HTTP streams
+  on iOS no matter what this app declares.
 - **Errors** — every failure in core carries a stable code, and the UI renders a
   specific message rather than "something went wrong".
 

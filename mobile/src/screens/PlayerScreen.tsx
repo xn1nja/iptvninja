@@ -5,11 +5,20 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import { useEvent } from 'expo';
-import { formatClock, programmeProgress, type NowNext } from '@iptv-ninja/core';
+import {
+  alternateLiveExtension,
+  formatClock,
+  probeStream,
+  programmeProgress,
+  swapStreamExtension,
+  type NowNext,
+  type StreamProbe,
+} from '@iptv-ninja/core';
 
 import { Focusable } from '../components/Focusable';
 import { Button } from '../components/ui';
 import { useAppState } from '../state/AppState';
+import { cleartextLikelyBlocked, isExpoGo } from '../platform/runtime';
 import { branding } from '../theme/branding';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -37,9 +46,11 @@ export function PlayerScreen() {
   const videoRef = useRef<React.ComponentRef<typeof VideoView>>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const streamUrl = channel.streamUrl ?? null;
+  const [streamUrl, setStreamUrl] = useState(channel.streamUrl ?? null);
+  const [probe, setProbe] = useState<StreamProbe | null>(null);
+  const [probing, setProbing] = useState(false);
 
-  const player = useVideoPlayer(streamUrl, (instance: VideoPlayer) => {
+  const player = useVideoPlayer(channel.streamUrl ?? null, (instance: VideoPlayer) => {
     instance.loop = false;
     // Live streams have no meaningful position to restore; just start.
     instance.play();
@@ -49,7 +60,39 @@ export function PlayerScreen() {
   const playing = useEvent(player, 'playingChange', { isPlaying: player.playing });
 
   const isLoading = status.status === 'loading';
-  const playbackError = status.status === 'error' ? (status.error?.message ?? 'Playback failed.') : null;
+  const playbackError =
+    status.status === 'error' ? (status.error?.message ?? 'Playback failed.') : null;
+
+  const alternate = streamUrl ? alternateLiveExtension(streamUrl) : null;
+  const alternateUrl =
+    streamUrl && alternate ? swapStreamExtension(streamUrl, alternate) : null;
+
+  // Providers fail in a lot of different ways and the player only ever reports
+  // "playback failed", so ask the server directly what it is serving.
+  useEffect(() => {
+    if (!playbackError || !streamUrl || probe?.url === streamUrl) return;
+    let cancelled = false;
+
+    setProbing(true);
+    void (async () => {
+      const result = await probeStream(streamUrl);
+      if (!cancelled) {
+        setProbe(result);
+        setProbing(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [playbackError, streamUrl, probe?.url]);
+
+  const switchContainer = useCallback(() => {
+    if (!alternateUrl) return;
+    setProbe(null);
+    setStreamUrl(alternateUrl);
+    void player.replaceAsync(alternateUrl);
+  }, [alternateUrl, player]);
 
   const revealOverlay = useCallback(() => {
     setOverlayVisible(true);
@@ -135,15 +178,45 @@ export function PlayerScreen() {
       {playbackError ? (
         <View style={styles.errorLayer}>
           <Text style={styles.errorTitle}>This stream would not play</Text>
-          <Text style={styles.errorBody}>{playbackError}</Text>
-          <Text style={styles.errorHint}>
-            Some providers only serve MPEG-TS. Ask them for an HLS (.m3u8) URL, or try another
-            channel.
-          </Text>
+
+          {probing ? (
+            <Text style={styles.errorBody}>Checking what the server is sending…</Text>
+          ) : (
+            <Text style={styles.errorBody}>{probe?.detail ?? playbackError}</Text>
+          )}
+
+          {cleartextLikelyBlocked(streamUrl ?? '') ? (
+            <Text style={styles.errorHint}>
+              You are running in Expo Go, which uses its own network permissions, so iOS blocks
+              plain http:// streams here regardless of this app&apos;s settings. Install a
+              development build to play them.
+            </Text>
+          ) : probe?.diagnosis === 'not_a_stream' ? (
+            <Text style={styles.errorHint}>
+              Check the account on the Playlists tab: an expired line or too many simultaneous
+              connections both look like this.
+            </Text>
+          ) : alternate ? (
+            <Text style={styles.errorHint}>
+              {alternate === 'ts'
+                ? 'Some panels only serve MPEG-TS. Note that iOS can play HLS only, so TS is worth trying on Android rather than here.'
+                : 'HLS is the format iOS can play, so it is worth trying if MPEG-TS failed.'}
+            </Text>
+          ) : null}
+
           <View style={styles.errorActions}>
             <Button label="Retry" onPress={() => player.replay()} />
+            {alternateUrl ? (
+              <Button
+                label={alternate === 'ts' ? 'Try MPEG-TS' : 'Try HLS'}
+                variant="secondary"
+                onPress={switchContainer}
+              />
+            ) : null}
             <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} />
           </View>
+
+          {isExpoGo ? <Text style={styles.errorMeta}>Running in Expo Go</Text> : null}
         </View>
       ) : null}
 
@@ -309,6 +382,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: typography.body,
     textAlign: 'center',
+  },
+  errorMeta: {
+    color: colors.textFaint,
+    fontSize: typography.caption,
+    marginTop: spacing(1.5),
   },
   errorHint: {
     color: colors.textMuted,

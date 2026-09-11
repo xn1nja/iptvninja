@@ -47,6 +47,14 @@ export {
 export { EpgIndex, formatClock, nowNext, programmeProgress } from './epg';
 export { XtreamClient, type XtreamClientOptions } from './xtream';
 export { searchChannels, type SearchOptions } from './search';
+export {
+  alternateLiveExtension,
+  isHlsUrl,
+  probeStream,
+  swapStreamExtension,
+  type StreamDiagnosis,
+  type StreamProbe,
+} from './stream';
 export { FavouritesRepository } from './favourites';
 export {
   SourceRepository,
