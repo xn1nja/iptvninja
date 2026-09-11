@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+dist/
+dist-test/
+web-build/
+*.log
+npm-debug.*
+.DS_Store
+*.tsbuildinfo
+.env
+.env.local

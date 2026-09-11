@@ -1,0 +1,23 @@
+{
+  "name": "iptv-ninja",
+  "version": "0.1.0",
+  "private": true,
+  "description": "IPTV Ninja — IPTV viewer monorepo. /core is platform-agnostic, /mobile is the Expo app.",
+  "license": "MIT",
+  "workspaces": [
+    "core",
+    "mobile"
+  ],
+  "scripts": {
+    "start": "npm run start --workspace mobile",
+    "android": "npm run android --workspace mobile",
+    "ios": "npm run ios --workspace mobile",
+    "build:core": "npm run build --workspace @iptv-ninja/core",
+    "test": "npm run test --workspace @iptv-ninja/core",
+    "typecheck": "npm run typecheck --workspace @iptv-ninja/core && npm run typecheck --workspace mobile",
+    "lint": "npm run typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
