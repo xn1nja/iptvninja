@@ -36,6 +36,7 @@ export function FavouritesScreen() {
   if (!activeSource) {
     return (
       <EmptyState
+        artwork={branding.assets.banner}
         title={branding.copy.emptySourcesTitle}
         body={branding.copy.emptySourcesBody}
         actionLabel="Add a playlist"

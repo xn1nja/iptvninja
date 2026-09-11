@@ -4,6 +4,7 @@ import { NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
+import { BrandHeaderTitle } from '../components/BrandHeaderTitle';
 import { AddSourceScreen } from '../screens/AddSourceScreen';
 import { BrowseScreen } from '../screens/BrowseScreen';
 import { ChannelListScreen } from '../screens/ChannelListScreen';
@@ -69,11 +70,27 @@ function TabsNavigator() {
       <Tabs.Screen
         name="Browse"
         component={BrowseScreen}
-        options={{ title: branding.copy.appName }}
+        options={{
+          title: branding.copy.appName,
+          // No label: the home screen shows the product name and tagline.
+          headerTitle: () => <BrandHeaderTitle />,
+        }}
       />
-      <Tabs.Screen name="Search" component={SearchScreen} />
-      <Tabs.Screen name="Favourites" component={FavouritesScreen} />
-      <Tabs.Screen name="Playlists" component={PlaylistsScreen} />
+      <Tabs.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{ headerTitle: () => <BrandHeaderTitle label="Search" /> }}
+      />
+      <Tabs.Screen
+        name="Favourites"
+        component={FavouritesScreen}
+        options={{ headerTitle: () => <BrandHeaderTitle label="Favourites" /> }}
+      />
+      <Tabs.Screen
+        name="Playlists"
+        component={PlaylistsScreen}
+        options={{ headerTitle: () => <BrandHeaderTitle label="Playlists" /> }}
+      />
     </Tabs.Navigator>
   );
 }

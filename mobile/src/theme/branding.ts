@@ -42,11 +42,26 @@ export interface BrandingCopy {
   supportUrl?: string;
 }
 
+export interface BrandingAssets {
+  /** Full lockup — mark plus wordmark. The app icon artwork. */
+  logo: ImageSourcePropType;
+  /** Mark only, transparent background. For headers and other compact spots. */
+  logoMark: ImageSourcePropType;
+  /** Full-bleed portrait artwork for the launch screen. */
+  splash: ImageSourcePropType;
+  /** Wide banner with the tagline. */
+  banner: ImageSourcePropType;
+}
+
 export interface Branding {
   copy: BrandingCopy;
   colors: BrandingPalette;
-  /** Logo shown in the header and on the player overlay. */
+  /**
+   * Full lockup. Kept at the top level because it is the one every screen
+   * reaches for; the rest of the artwork lives under `assets`.
+   */
   logo: ImageSourcePropType;
+  assets: BrandingAssets;
   /** Placeholder for channels with no `tvg-logo`. */
   channelPlaceholder: ImageSourcePropType;
   radii: { sm: number; md: number; lg: number; pill: number };
@@ -89,8 +104,18 @@ export const branding: Branding = {
       'IPTV Ninja ships with no channels of its own. You supply your own provider credentials or playlist.',
   },
   colors: palette,
+  // Asset filenames here deliberately avoid an `@1x`/`@2x` suffix: React
+  // Native reserves that for pixel-density variants, so `Wordmark@1x.png`
+  // cannot be required directly.
   logo: require('../../assets/icon.png') as ImageSourcePropType,
-  channelPlaceholder: require('../../assets/icon.png') as ImageSourcePropType,
+  assets: {
+    logo: require('../../assets/icon.png') as ImageSourcePropType,
+    logoMark: require('../../assets/icon-mark.png') as ImageSourcePropType,
+    splash: require('../../assets/splash-icon.png') as ImageSourcePropType,
+    banner: require('../../assets/header.png') as ImageSourcePropType,
+  },
+  // Transparent mark sits better than the full lockup in a small rounded tile.
+  channelPlaceholder: require('../../assets/icon-mark.png') as ImageSourcePropType,
   radii: { sm: 6, md: 12, lg: 18, pill: 999 },
   spacing: (steps: number) => steps * 8,
   typography: {

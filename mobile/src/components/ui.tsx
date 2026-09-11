@@ -5,10 +5,12 @@ import {
   Text,
   TextInput,
   View,
+  type ImageSourcePropType,
   type StyleProp,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import { Image } from 'expo-image';
 
 import { branding } from '../theme/branding';
 import { Focusable } from './Focusable';
@@ -47,14 +49,25 @@ export function EmptyState({
   body,
   actionLabel,
   onAction,
+  artwork,
 }: {
   title: string;
   body?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Optional branding banner, for the first-run states worth dressing up. */
+  artwork?: ImageSourcePropType;
 }) {
   return (
     <View style={styles.centered}>
+      {artwork ? (
+        <Image
+          source={artwork}
+          contentFit="contain"
+          style={styles.emptyArtwork}
+          accessibilityIgnoresInvertColors
+        />
+      ) : null}
       <Text style={styles.emptyTitle}>{title}</Text>
       {body ? <Text style={styles.centeredText}>{body}</Text> : null}
       {actionLabel && onAction ? (
@@ -232,6 +245,12 @@ const styles = StyleSheet.create({
   },
   emptyAction: {
     marginTop: spacing(2),
+  },
+  emptyArtwork: {
+    width: '100%',
+    maxWidth: 340,
+    aspectRatio: 2139 / 735,
+    marginBottom: spacing(1),
   },
   errorTitle: {
     color: colors.danger,

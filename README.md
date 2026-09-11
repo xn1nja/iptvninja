@@ -243,8 +243,9 @@ panel. This is the one thing worth checking first on your own account.
   TMDB enrichment, trailers or cast pages.
 - **Channel logos** are loaded straight from the provider's URLs via
   `expo-image`. Providers with broken logo hosts will show the placeholder.
-- **App icon and splash** are still the Expo defaults (`mobile/assets/`). Replace
-  them along with `branding.ts` when skinning.
+- **Artwork is unoptimised.** `icon.png`, `splash-icon.png` and `header.png` are
+  ~1.2–1.3 MB each, so about 4 MB of the bundle is images. Fine to ship, worth
+  compressing before a store release.
 - **No tests in `/mobile`** — core carries the logic and the tests; the mobile
   layer is UI and platform glue.
 - **Not built, by design:** the Tizen/webOS client, any backend, and any
@@ -261,6 +262,28 @@ user-visible string, colour, radius, spacing step, type size and image in
 `/mobile`. Nothing else hardcodes a product name or a hex value — re-skinning for
 a client means editing that one file, swapping `mobile/assets/`, and changing
 `name` / `slug` / bundle identifier in `app.json`.
+
+### Where the artwork is used
+
+| Slot | Asset | Notes |
+| --- | --- | --- |
+| App icon (iOS + Android legacy) | `icon.png` | Full lockup. No alpha channel, which iOS requires |
+| Android adaptive foreground | `android-adaptive-foreground.png` | Generated from `icon-mark.png`, padded into the 66% safe zone |
+| Android adaptive background | `android-icon-background.png` | Blue gradient |
+| Native splash | `splash-icon.png` | `resizeMode: cover`; the art is 853×1844, near-identical to 9:19.5 |
+| Web favicon | `favicon-32x32.png` | |
+| In-app launch screen | `branding.assets.splash` | Same art as the native splash, so the handoff is seamless |
+| Tab headers | `branding.assets.logoMark` | Mark plus screen label |
+| First-run empty states, Add-playlist screen | `branding.assets.banner` | `header.png`, the wide banner with the tagline |
+
+**Android adaptive icons are masked to a circle**, and only the centre ~66% is
+guaranteed visible. The full lockup loses its wordmark to that mask, so the
+adaptive foreground uses the mark alone rather than `icon.png`. Regenerate it
+from a new `icon-mark.png` if you re-skin.
+
+**Do not `require()` an asset whose filename ends in `@1x`/`@2x`.** React Native
+reserves that suffix for pixel-density variants, so `Wordmark@1x.png` and
+`AppIcon@2x.png` fail to resolve. Rename them first if you want to use them.
 
 Current identifiers:
 

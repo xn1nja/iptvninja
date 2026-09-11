@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import { describeError, type SourceConfig } from '@iptv-ninja/core';
 
@@ -82,6 +83,12 @@ export function AddSourceScreen() {
         style={styles.flex}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Image
+            source={branding.assets.banner}
+            contentFit="contain"
+            style={styles.banner}
+            accessibilityIgnoresInvertColors
+          />
           <Text style={styles.notice}>{branding.copy.bringYourOwnNotice}</Text>
 
           <SegmentedControl<Mode>
@@ -204,6 +211,11 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing(2),
     paddingBottom: spacing(6),
+  },
+  banner: {
+    width: '100%',
+    aspectRatio: 2139 / 735,
+    marginBottom: spacing(1.5),
   },
   notice: {
     color: colors.textMuted,

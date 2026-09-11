@@ -73,8 +73,9 @@ Carried over from the README's honest-status list:
 - **No resume position** for movies and episodes; playback always starts at zero.
 - **Guide is per channel** — a day-grouped list, not a scrolling multi-channel
   grid.
-- **App icon and splash are still Expo defaults** (`mobile/assets/`). Everything
-  else brandable already lives in `mobile/src/theme/branding.ts`.
+- **Artwork is unoptimised.** `icon.png`, `splash-icon.png` and `header.png` run
+  ~1.2–1.3 MB each; roughly 4 MB of the bundle is images. Worth compressing
+  before a store release.
 - **Playback is unverified against a real provider.** The Xtream client is
   tested against recorded response shapes, not a live panel.
 
