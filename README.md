@@ -63,9 +63,22 @@ npm install          # installs both workspaces — run from the repo root
 npm start            # → npx expo start in /mobile
 ```
 
-`npm install` must be run from the repo root, not from `/mobile`: this is an
-npm workspaces monorepo, and `/mobile` resolves `@iptv-ninja/core` through a
-symlink that only a root-level install creates.
+**Run every command from the repo root.** This is an npm workspaces monorepo:
+
+- `npm install` at the root is what creates the symlink `/mobile` uses to
+  resolve `@iptv-ninja/core`. Installing inside `/mobile` alone will not.
+- `npm start` at the root forwards to `/mobile`. Do **not** run `npx expo start`
+  at the root — Expo would treat the root as the app, find no `App.tsx`, fail
+  with `Unable to resolve "../../App"`, and leave a stray `tsconfig.json`
+  behind. If that happens, delete the generated root `tsconfig.json` and
+  `.expo/`, then use `npm start`.
+
+If you would rather drive Expo directly, `cd mobile` first:
+
+```bash
+cd mobile
+npx expo start
+```
 
 Other useful commands, all from the repo root:
 
