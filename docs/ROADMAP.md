@@ -79,7 +79,27 @@ Carried over from the README's honest-status list:
 - **Playback is unverified against a real provider.** The Xtream client is
   tested against recorded response shapes, not a live panel.
 
-## 3. Explicitly out of scope for now
+## 3. EPG performance notes
+
+The full XMLTV guide is now only fetched when the guide screen needs it and
+nothing cheaper is available, and it is parsed in chunks that yield to the host
+between batches (`parseXmltvAsync`). This matters because a provider guide runs
+to tens of megabytes and a phone has one JS thread: the earlier version primed
+it as soon as a playlist loaded, which froze the UI and made the app look
+unresponsive to taps.
+
+Rules to keep to:
+
+- Never call `primeEpg()` from a list row or from source loading.
+- Now/next on Xtream comes from `get_short_epg`, one small request per channel.
+- Only ask for now/next on rows actually on screen.
+- Guides above `MAX_GUIDE_CHARS` (32M) are skipped rather than parsed.
+
+If EPG ever needs to be faster, the next step is a persisted parse — write the
+`EpgIndex` to storage once and reuse it across launches — not a bigger
+synchronous parse.
+
+## 4. Explicitly out of scope for now
 
 - The Tizen / webOS thin client. `/core` is kept clean so it can be built
   without a rewrite, and the boundary is enforced by

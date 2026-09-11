@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { FlatList, StyleSheet, type ViewToken } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { describeError, type Channel } from '@iptv-ninja/core';
@@ -45,7 +45,20 @@ export function ChannelListScreen() {
     };
   }, [catalog, kind, categoryId]);
 
-  const nowNext = useNowNext(catalog, channels ?? [], kind === 'live');
+  // Only rows on screen get an EPG lookup. On an Xtream source each one is a
+  // separate request, so asking for a whole category at once queued hundreds.
+  const [visible, setVisible] = useState<Channel[]>([]);
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 10,
+    minimumViewTime: 150,
+  }).current;
+  const handleViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      setVisible(viewableItems.map((token) => token.item as Channel));
+    },
+  ).current;
+
+  const nowNext = useNowNext(catalog, visible, kind === 'live');
 
   const openChannel = (channel: Channel) => {
     if (channel.kind === 'series') {
@@ -67,6 +80,8 @@ export function ChannelListScreen() {
         initialNumToRender={16}
         windowSize={9}
         removeClippedSubviews
+        viewabilityConfig={viewabilityConfig}
+        onViewableItemsChanged={handleViewableItemsChanged}
         ListEmptyComponent={<EmptyState title="This category is empty" />}
         renderItem={({ item }) => (
           <ChannelRow

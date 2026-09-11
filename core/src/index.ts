@@ -34,7 +34,16 @@ export {
   type M3uPlaylist,
   type ParseM3uOptions,
 } from './m3u';
-export { parseXmltv, parseXmltvTime, type XmltvChannel, type XmltvDocument } from './xmltv';
+export {
+  iterateXmltvChannels,
+  iterateXmltvProgrammes,
+  parseXmltv,
+  parseXmltvAsync,
+  parseXmltvTime,
+  type ParseXmltvAsyncOptions,
+  type XmltvChannel,
+  type XmltvDocument,
+} from './xmltv';
 export { EpgIndex, formatClock, nowNext, programmeProgress } from './epg';
 export { XtreamClient, type XtreamClientOptions } from './xtream';
 export { searchChannels, type SearchOptions } from './search';

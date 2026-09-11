@@ -83,13 +83,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setCatalogError(null);
 
     try {
-      // The XMLTV guide can be tens of megabytes; let the browse screens come
-      // up first and pull the guide in the background on first EPG request.
+      // The XMLTV guide can be tens of megabytes, so it is never fetched as
+      // part of opening a source.
       const loaded = await openCatalog(source, { deferEpg: true, timeoutMs: 25_000 });
       if (token !== loadToken.current) return;
       setCatalog(loaded);
       setCatalogStatus('ready');
-      void loaded.primeEpg();
+      // Deliberately not priming the EPG here. The full XMLTV guide can run to
+      // tens of megabytes, and parsing it on the single JS thread froze the UI
+      // the moment a playlist finished loading. Now/next comes from the far
+      // cheaper per-channel endpoint instead, and the guide screen loads the
+      // full document on demand.
     } catch (error) {
       if (token !== loadToken.current) return;
       setCatalog(null);

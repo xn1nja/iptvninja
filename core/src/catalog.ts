@@ -3,7 +3,7 @@ import { IptvError } from './errors';
 import { httpGetText, type HttpClientOptions } from './http';
 import { parseM3uStrict } from './m3u';
 import { XtreamClient } from './xtream';
-import { parseXmltv } from './xmltv';
+import { parseXmltvAsync } from './xmltv';
 import type {
   Category,
   Channel,
@@ -41,6 +41,29 @@ export interface Catalog {
 export interface OpenCatalogOptions extends HttpClientOptions {
   /** Skip the XMLTV download on open. The guide then loads on first use. */
   deferEpg?: boolean;
+}
+
+/**
+ * Guides beyond this many characters are skipped rather than parsed.
+ *
+ * A runaway guide would otherwise be held in memory as one string and walked
+ * by regex; per-channel `get_short_epg` is the better answer at that size.
+ */
+const MAX_GUIDE_CHARS = 32_000_000;
+
+/** Window kept from a guide: enough for "now/next" plus a couple of days. */
+const GUIDE_PAST_MS = 6 * 60 * 60 * 1000;
+const GUIDE_FUTURE_MS = 3 * 24 * 60 * 60 * 1000;
+
+async function parseGuide(xml: string) {
+  if (xml.length > MAX_GUIDE_CHARS) {
+    throw new IptvError('invalid_response', 'The XMLTV guide is too large to parse on device.');
+  }
+  const now = Date.now();
+  return parseXmltvAsync(xml, {
+    from: now - GUIDE_PAST_MS,
+    to: now + GUIDE_FUTURE_MS,
+  });
 }
 
 function emptyCapabilities(): SourceCapabilities {
@@ -149,7 +172,7 @@ class XtreamCatalog implements Catalog {
     this.epgLoad = (async () => {
       try {
         const xml = await this.client.getXmltv();
-        const parsed = parseXmltv(xml);
+        const parsed = await parseGuide(xml);
         const aliases: Record<string, string[]> = {};
         for (const channel of parsed.channels) {
           if (channel.displayNames.length > 0) aliases[channel.id] = channel.displayNames;
@@ -169,7 +192,8 @@ class XtreamCatalog implements Catalog {
   async getNowNext(channel: Channel): Promise<NowNext> {
     if (channel.kind !== 'live') return {};
 
-    await this.primeEpg();
+    // Only consult XMLTV if it happens to be loaded already. Priming it here
+    // would mean a list row triggering a multi-megabyte download and parse.
     const fromXmltv = this.epgIndex?.nowNextFor(channel) ?? {};
     if (fromXmltv.now || fromXmltv.next) return fromXmltv;
 
@@ -191,12 +215,21 @@ class XtreamCatalog implements Catalog {
   async getGuide(channel: Channel): Promise<EpgEntry[]> {
     if (channel.kind !== 'live') return [];
 
-    await this.primeEpg();
-    const fromXmltv = this.epgIndex?.entriesFor(channel) ?? [];
-    if (fromXmltv.length > 0) return fromXmltv;
+    const cached = this.epgIndex?.entriesFor(channel) ?? [];
+    if (cached.length > 0) return cached;
 
-    if (!channel.streamId) return [];
-    return this.client.getShortEpg(channel.streamId, 24).catch((): EpgEntry[] => []);
+    // The guide screen is an explicit user action with its own loading state,
+    // so a per-channel request here is proportionate.
+    if (channel.streamId) {
+      const listings = await this.client
+        .getShortEpg(channel.streamId, 24)
+        .catch((): EpgEntry[] => []);
+      if (listings.length > 0) return listings;
+    }
+
+    // Last resort: the full XMLTV guide, parsed in chunks.
+    await this.primeEpg();
+    return this.epgIndex?.entriesFor(channel) ?? [];
   }
 
   async getSeriesDetail(channel: Channel): Promise<SeriesDetail> {
@@ -267,7 +300,7 @@ class M3uCatalog implements Catalog {
     this.epgLoad = (async () => {
       try {
         const xml = await httpGetText(this.epgUrl as string, this.options);
-        const parsed = parseXmltv(xml);
+        const parsed = await parseGuide(xml);
         const aliases: Record<string, string[]> = {};
         for (const channel of parsed.channels) {
           if (channel.displayNames.length > 0) aliases[channel.id] = channel.displayNames;

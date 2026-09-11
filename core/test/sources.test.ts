@@ -130,9 +130,23 @@ const M3U_BODY = [
   'http://provider.example/movie/u/p/2.mp4',
 ].join('\n');
 
+/** XMLTV wants `YYYYMMDDHHMMSS +0000`. */
+function xmltvTime(offsetMs: number): string {
+  const date = new Date(Date.now() + offsetMs);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return (
+    `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}` +
+    `${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())} +0000`
+  );
+}
+
+const HOUR = 60 * 60 * 1000;
+
+// Relative to now on purpose: catalogs keep only a window around the present,
+// so a guide pinned to a fixed past date would be discarded as stale.
 const XMLTV_BODY = `<tv>
   <channel id="bbc1.uk"><display-name>BBC One</display-name></channel>
-  <programme start="20240115200000 +0000" stop="20240115210000 +0000" channel="bbc1.uk">
+  <programme start="${xmltvTime(-HOUR)}" stop="${xmltvTime(HOUR)}" channel="bbc1.uk">
     <title>Evening News</title>
   </programme>
 </tv>`;
@@ -196,4 +210,27 @@ test('a pasted playlist needs no network at all', async () => {
     },
   });
   assert.equal((await catalog.getAllChannels()).length, 2);
+});
+
+test('opening a catalog never downloads the XMLTV guide', async () => {
+  // The guide is megabytes and parsing it blocks the only JS thread a phone
+  // has, so nothing may pull it in as a side effect of loading a playlist.
+  const requested: string[] = [];
+  const fetchImpl: FetchLike = async (url) => {
+    requested.push(url);
+    return { ok: true, status: 200, text: async () => M3U_BODY };
+  };
+
+  const source: Source = {
+    id: 'src_4',
+    name: 'Test',
+    createdAt: 0,
+    config: { kind: 'm3u', url: 'http://provider.example/playlist.m3u' },
+  };
+
+  const catalog = await openCatalog(source, { fetchImpl, deferEpg: true });
+  await catalog.getChannels('live');
+
+  assert.equal(requested.length, 1);
+  assert.ok(!requested.some((url) => url.includes('xmltv')));
 });

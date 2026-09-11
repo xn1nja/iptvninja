@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { EpgIndex, nowNext, programmeProgress } from '../src/epg';
-import { parseXmltv, parseXmltvTime } from '../src/xmltv';
+import { parseXmltv, parseXmltvAsync, parseXmltvTime } from '../src/xmltv';
 import type { EpgEntry } from '../src/types';
 
 const XMLTV = `<?xml version="1.0" encoding="UTF-8"?>
@@ -102,4 +102,57 @@ test('EpgIndex windows programmes overlapping a range', () => {
     Date.UTC(2024, 0, 15, 21, 30),
   );
   assert.equal(window.length, 2);
+});
+
+test('the async parser yields between chunks so a host stays responsive', async () => {
+  // A guide big enough that a single synchronous pass would be felt on device.
+  const programmes = Array.from({ length: 500 }, (_, index) => {
+    const hour = String(index % 24).padStart(2, '0');
+    const day = 15 + Math.floor(index / 24);
+    return (
+      `<programme start="202401${day}${hour}0000 +0000" stop="202401${day}${hour}3000 +0000" channel="c1">` +
+      `<title>Show ${index}</title></programme>`
+    );
+  }).join('');
+  const xml = `<tv><channel id="c1"><display-name>One</display-name></channel>${programmes}</tv>`;
+
+  let yields = 0;
+  const parsed = await parseXmltvAsync(xml, {
+    chunkSize: 50,
+    yieldFn: async () => {
+      yields += 1;
+    },
+  });
+
+  assert.equal(parsed.programmes.length, 500);
+  assert.equal(parsed.channels.length, 1);
+  // 501 elements at a chunk size of 50 means it handed control back repeatedly
+  // rather than running straight through.
+  assert.ok(yields >= 9, `expected repeated yields, saw ${yields}`);
+});
+
+test('the async parser drops programmes outside the requested window', async () => {
+  const xml = `<tv>
+    <programme start="20240115000000 +0000" stop="20240115010000 +0000" channel="c1"><title>Old</title></programme>
+    <programme start="20240120000000 +0000" stop="20240120010000 +0000" channel="c1"><title>Keep</title></programme>
+    <programme start="20240201000000 +0000" stop="20240201010000 +0000" channel="c1"><title>Far future</title></programme>
+  </tv>`;
+
+  const parsed = await parseXmltvAsync(xml, {
+    from: Date.UTC(2024, 0, 19),
+    to: Date.UTC(2024, 0, 21),
+    yieldFn: async () => {},
+  });
+
+  assert.deepEqual(
+    parsed.programmes.map((entry) => entry.title),
+    ['Keep'],
+  );
+});
+
+test('the sync and async parsers agree on the same document', async () => {
+  const sync = parseXmltv(XMLTV);
+  const async_ = await parseXmltvAsync(XMLTV, { yieldFn: async () => {} });
+  assert.deepEqual(async_.programmes, sync.programmes);
+  assert.deepEqual(async_.channels, sync.channels);
 });
