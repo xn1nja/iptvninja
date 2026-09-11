@@ -78,24 +78,60 @@ npm run android      # expo start --android
 
 ### Do you need a custom dev client?
 
-**Yes, for real use.** `npx expo start` with Expo Go is fine for poking at the UI,
-but two things only take effect in a development build:
+**Probably, for real use.** `npx expo start` with Expo Go is fine for poking at
+the UI, and it is worth trying first because it costs nothing. But two things
+only take effect in a development build:
 
-- **Cleartext HTTP.** Most Xtream panels are `http://host:8080`, not HTTPS.
+- **Cleartext HTTP.** Many Xtream panels are `http://host:8080`, not HTTPS.
   `app.json` sets `android.usesCleartextTraffic` and iOS
   `NSAppTransportSecurity.NSAllowsArbitraryLoads` for this; both are native
-  manifest settings that Expo Go cannot apply.
+  manifest settings that Expo Go cannot apply. If your panel is HTTPS, Expo Go
+  may be all you need.
 - **The `expo-video` plugin options** — background playback and
   picture-in-picture.
 
-So for testing against a real provider:
+How you get a development build depends on what you are developing on:
+
+| You are on | Target | Command |
+| --- | --- | --- |
+| Windows / Linux / macOS | Android | `npx expo run:android` |
+| macOS | iOS | `npx expo run:ios` |
+| Windows / Linux | iOS | `eas build -p ios --profile development` |
+
+`expo run:*` builds locally: it runs prebuild to generate the native project,
+then compiles it. iOS compilation needs Xcode, so it is macOS-only — there is no
+way around that from Windows.
+
+### Building for iOS without a Mac
+
+`eas.json` in `/mobile` is already configured. From the repo root:
 
 ```bash
-npx expo run:android      # or: npx expo run:ios   (macOS only)
+npm install -g eas-cli
+cd mobile
+eas login                                     # free Expo account
+eas build -p ios --profile development
 ```
 
-That generates the native projects via prebuild and installs a dev client with
-the right manifest entries.
+EAS compiles in the cloud and gives you a QR code / install link for the
+resulting dev client. Then back on your machine:
+
+```bash
+npm start        # scan the QR with the dev client, not Expo Go
+```
+
+**This needs a paid Apple Developer Program membership ($99/year).** iOS requires
+code signing for any build that runs on a physical device, including development
+builds; EAS will walk you through generating the certificates, but it cannot
+create the account for you. There is no free path to an iOS build on a real
+device. Android has no such requirement.
+
+Profiles in `eas.json`:
+
+- `development` — dev client for a physical device, internal distribution
+- `development-simulator` — iOS simulator build (needs a Mac to run it)
+- `preview` — standalone internal build; Android comes out as an installable APK
+- `production` — store build
 
 ### Plugging in your own account
 
