@@ -249,12 +249,19 @@ a source deletes its favourites too and never touches your provider account.
   jump-to-live, overlay with channel logo/name and the current programme,
   auto-hiding after 4 seconds.
 - **Playback diagnostics.** When a stream fails, the app fetches the playlist
-  itself and reports what the server actually sent — a valid playlist, an empty
-  one, an HTML error page (expired line or connection limit), an HTTP status, or
-  an unreachable host — rather than a bare "playback failed". It offers a
-  one-tap switch between the `.m3u8` and `.ts` containers, and it warns when
-  running under Expo Go, whose own network permissions block plain-HTTP streams
-  on iOS no matter what this app declares.
+  itself and reports what the server actually sent rather than a bare "playback
+  failed". A master playlist is followed one level to its first variant, which
+  is what separates "this channel is off air" from "this channel is fine" — the
+  two are identical at the top level. It distinguishes a live stream, a listed
+  but dead one, an empty playlist, an HTML error page (expired line or
+  connection limit), an HTTP status, and an unreachable host, and offers a
+  one-tap switch between the `.m3u8` and `.ts` containers.
+
+  The Expo Go warning is only shown while **nothing has played yet**. Once any
+  stream has run, Expo Go's network permissions are disproven as the cause, and
+  claiming otherwise would send someone off building a development build to fix
+  a channel that is simply offline. With a live stream that still will not play,
+  the likely cause is H.265 video or AC-3 audio, which iOS does not decode.
 - **Errors** — every failure in core carries a stable code, and the UI renders a
   specific message rather than "something went wrong".
 

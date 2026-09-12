@@ -9,6 +9,7 @@ export type StreamDiagnosis =
   | 'http_error'
   | 'not_a_stream'
   | 'empty_playlist'
+  | 'variant_unavailable'
   | 'unknown';
 
 export interface StreamProbe {
@@ -51,6 +52,47 @@ export function alternateLiveExtension(url: string): 'm3u8' | 'ts' | null {
 }
 
 /**
+ * Resolves a playlist-relative URI against the playlist's own URL.
+ *
+ * Hand-rolled rather than using `URL`, which React Native does not implement
+ * to spec and older TV runtimes may not have at all.
+ */
+export function resolveUrl(base: string, reference: string): string {
+  if (/^https?:\/\//i.test(reference)) return reference;
+
+  const match = /^(https?:\/\/[^/?#]+)([^?#]*)/i.exec(base);
+  if (!match) return reference;
+
+  const origin = match[1] ?? '';
+  const path = match[2] ?? '';
+
+  if (reference.startsWith('/')) return origin + reference;
+
+  const directory = path.replace(/[^/]*$/, '');
+  const segments: string[] = [];
+  for (const part of `${directory}${reference}`.split('/')) {
+    if (part === '.' || part === '') continue;
+    if (part === '..') segments.pop();
+    else segments.push(part);
+  }
+  return `${origin}/${segments.join('/')}`;
+}
+
+/** First variant URI listed in a master playlist, if this is one. */
+function firstVariantUri(playlist: string): string | null {
+  const lines = playlist.split(/\r\n|\r|\n/);
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!/^#EXT-X-STREAM-INF/i.test(lines[i] ?? '')) continue;
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const candidate = (lines[j] ?? '').trim();
+      if (!candidate || candidate.startsWith('#')) continue;
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/**
  * Works out why a stream would not play.
  *
  * Only HLS playlists are fetched: those are small, finite text files. A raw
@@ -74,16 +116,52 @@ export async function probeStream(
     const head = body.slice(0, 400).trim();
 
     if (head.startsWith('#EXTM3U')) {
-      // A master or media playlist with no segments plays as a black screen.
-      const hasContent = /#EXT-X-STREAM-INF|#EXTINF/i.test(body);
-      if (!hasContent) {
+      // A master playlist only names other playlists. Following one level is
+      // what distinguishes "the channel is fine" from "the channel is listed
+      // but dead", which look identical at the top level.
+      const variant = firstVariantUri(body);
+      if (variant) {
+        const variantUrl = resolveUrl(url, variant);
+        try {
+          const variantBody = await httpGetText(variantUrl, {
+            timeoutMs: HLS_TIMEOUT_MS,
+            ...options,
+          });
+          if (!/#EXTINF/i.test(variantBody)) {
+            return {
+              url,
+              diagnosis: 'empty_playlist',
+              detail: 'The stream is listed but is currently sending no video.',
+            };
+          }
+          return {
+            url,
+            diagnosis: 'ok',
+            detail: 'The server is sending a valid, live HLS stream.',
+          };
+        } catch {
+          return {
+            url,
+            diagnosis: 'variant_unavailable',
+            detail:
+              'The channel is listed but its actual stream could not be loaded. It is most likely offline at the provider.',
+          };
+        }
+      }
+
+      if (/#EXTINF/i.test(body)) {
         return {
           url,
-          diagnosis: 'empty_playlist',
-          detail: 'The server returned a playlist with no streams in it.',
+          diagnosis: 'ok',
+          detail: 'The server is sending a valid, live HLS stream.',
         };
       }
-      return { url, diagnosis: 'ok', detail: 'The server returned a valid HLS playlist.' };
+
+      return {
+        url,
+        diagnosis: 'empty_playlist',
+        detail: 'The server returned a playlist with no streams in it.',
+      };
     }
 
     if (/^<(!doctype|html)/i.test(head) || head.startsWith('{') || head.startsWith('<?xml')) {

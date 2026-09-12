@@ -6,6 +6,7 @@ import {
   alternateLiveExtension,
   isHlsUrl,
   probeStream,
+  resolveUrl,
   swapStreamExtension,
 } from '../src/stream';
 
@@ -35,8 +36,9 @@ test('recognises HLS URLs and swaps the container', () => {
   assert.equal(alternateLiveExtension('http://x/stream'), null);
 });
 
-test('a real playlist probes clean', async () => {
-  const body = '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1200000\nchunk.m3u8\n';
+test('a media playlist with segments probes clean', async () => {
+  // No master indirection: the URL is already the playlist carrying segments.
+  const body = '#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6.0,\nseg1.ts\n';
   const result = await probeStream(LIVE, { fetchImpl: respondWith(body) });
   assert.equal(result.diagnosis, 'ok');
 });
@@ -79,4 +81,56 @@ test('a raw MPEG-TS URL is never fetched, since it would never end', async () =>
   const result = await probeStream('http://x/live/u/p/1.ts', { fetchImpl });
   assert.equal(called, false);
   assert.equal(result.diagnosis, 'unknown');
+});
+
+test('resolves playlist-relative URIs against the playlist URL', () => {
+  const base = 'http://example.com:8080/live/demo/secret/101.m3u8';
+  assert.equal(resolveUrl(base, 'http://cdn.example/a.m3u8'), 'http://cdn.example/a.m3u8');
+  assert.equal(resolveUrl(base, '/hls/a.m3u8'), 'http://example.com:8080/hls/a.m3u8');
+  assert.equal(
+    resolveUrl(base, 'variant.m3u8'),
+    'http://example.com:8080/live/demo/secret/variant.m3u8',
+  );
+  assert.equal(resolveUrl(base, '../other/v.m3u8'), 'http://example.com:8080/live/demo/other/v.m3u8');
+});
+
+const MASTER = '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1200000\nvariant.m3u8\n';
+
+test('a listed channel whose stream is dead is reported as offline, not as a config problem', async () => {
+  // The master playlist loads fine; the variant it points at does not. This is
+  // the common "channel is in the list but off air" case, and it must not be
+  // confused with a permissions or credentials problem.
+  const fetchImpl: FetchLike = async (url) => {
+    if (url.endsWith('variant.m3u8')) throw new Error('connection refused');
+    return { ok: true, status: 200, text: async () => MASTER };
+  };
+
+  const result = await probeStream(LIVE, { fetchImpl });
+  assert.equal(result.diagnosis, 'variant_unavailable');
+  assert.match(result.detail, /offline/i);
+});
+
+test('a master playlist whose variant is live probes ok', async () => {
+  const fetchImpl: FetchLike = async (url) => ({
+    ok: true,
+    status: 200,
+    text: async () =>
+      url.endsWith('variant.m3u8') ? '#EXTM3U\n#EXTINF:6.0,\nseg1.ts\n' : MASTER,
+  });
+
+  const result = await probeStream(LIVE, { fetchImpl });
+  assert.equal(result.diagnosis, 'ok');
+  assert.match(result.detail, /live/i);
+});
+
+test('a variant carrying no segments means the channel is sending nothing', async () => {
+  const fetchImpl: FetchLike = async (url) => ({
+    ok: true,
+    status: 200,
+    text: async () => (url.endsWith('variant.m3u8') ? '#EXTM3U\n' : MASTER),
+  });
+
+  const result = await probeStream(LIVE, { fetchImpl });
+  assert.equal(result.diagnosis, 'empty_playlist');
+  assert.match(result.detail, /no video/i);
 });

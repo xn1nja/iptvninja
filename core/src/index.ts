@@ -51,6 +51,7 @@ export {
   alternateLiveExtension,
   isHlsUrl,
   probeStream,
+  resolveUrl,
   swapStreamExtension,
   type StreamDiagnosis,
   type StreamProbe,

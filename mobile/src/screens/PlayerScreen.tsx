@@ -18,6 +18,7 @@ import {
 import { Focusable } from '../components/Focusable';
 import { Button } from '../components/ui';
 import { useAppState } from '../state/AppState';
+import { hasAnyStreamPlayed, markStreamPlayed } from '../state/playbackHistory';
 import { cleartextLikelyBlocked, isExpoGo } from '../platform/runtime';
 import { branding } from '../theme/branding';
 import type { RootStackParamList } from '../navigation/types';
@@ -63,6 +64,10 @@ export function PlayerScreen() {
   const playbackError =
     status.status === 'error' ? (status.error?.message ?? 'Playback failed.') : null;
 
+  // Expo Go only explains a failure while nothing has played yet. Once one
+  // stream has run, its network permissions are demonstrably not the problem.
+  const cleartextBlocked = cleartextLikelyBlocked(streamUrl ?? '') && !hasAnyStreamPlayed();
+
   const alternate = streamUrl ? alternateLiveExtension(streamUrl) : null;
   const alternateUrl =
     streamUrl && alternate ? swapStreamExtension(streamUrl, alternate) : null;
@@ -93,6 +98,10 @@ export function PlayerScreen() {
     setStreamUrl(alternateUrl);
     void player.replaceAsync(alternateUrl);
   }, [alternateUrl, player]);
+
+  useEffect(() => {
+    if (playing.isPlaying) markStreamPlayed();
+  }, [playing.isPlaying]);
 
   const revealOverlay = useCallback(() => {
     setOverlayVisible(true);
@@ -185,16 +194,28 @@ export function PlayerScreen() {
             <Text style={styles.errorBody}>{probe?.detail ?? playbackError}</Text>
           )}
 
-          {cleartextLikelyBlocked(streamUrl ?? '') ? (
-            <Text style={styles.errorHint}>
-              You are running in Expo Go, which uses its own network permissions, so iOS blocks
-              plain http:// streams here regardless of this app&apos;s settings. Install a
-              development build to play them.
-            </Text>
-          ) : probe?.diagnosis === 'not_a_stream' ? (
+          {probe?.diagnosis === 'not_a_stream' ? (
             <Text style={styles.errorHint}>
               Check the account on the Playlists tab: an expired line or too many simultaneous
               connections both look like this.
+            </Text>
+          ) : probe?.diagnosis === 'variant_unavailable' ||
+            probe?.diagnosis === 'empty_playlist' ? (
+            <Text style={styles.errorHint}>
+              Nothing to fix on this end — try another channel, or ask your provider whether this
+              one is down.
+            </Text>
+          ) : cleartextBlocked ? (
+            <Text style={styles.errorHint}>
+              You are running in Expo Go, which applies its own network permissions, so iOS may be
+              blocking plain http:// streams here regardless of this app&apos;s settings. Install a
+              development build to rule that out.
+            </Text>
+          ) : probe?.diagnosis === 'ok' ? (
+            <Text style={styles.errorHint}>
+              The stream is live and reachable, so this is the player rejecting it — usually H.265
+              video or AC-3 audio, which iOS will not decode. Other channels from the same provider
+              should still work.
             </Text>
           ) : alternate ? (
             <Text style={styles.errorHint}>
@@ -216,7 +237,11 @@ export function PlayerScreen() {
             <Button label="Back" variant="secondary" onPress={() => navigation.goBack()} />
           </View>
 
-          {isExpoGo ? <Text style={styles.errorMeta}>Running in Expo Go</Text> : null}
+          {isExpoGo ? (
+            <Text style={styles.errorMeta}>
+              Running in Expo Go{hasAnyStreamPlayed() ? ' · other streams have played' : ''}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
