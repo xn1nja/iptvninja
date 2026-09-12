@@ -8,12 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0B0D12",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#0B0D12"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "mk.ninja.iptvninja",
@@ -31,7 +25,6 @@
     },
     "android": {
       "package": "mk.ninja.iptvninja",
-      "usesCleartextTraffic": true,
       "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
         "backgroundColor": "#0B0D12",
@@ -51,7 +44,23 @@
           "supportsPictureInPicture": true
         }
       ],
-      "expo-document-picker"
+      "expo-document-picker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#0B0D12"
+        }
+      ]
     ]
   }
 }

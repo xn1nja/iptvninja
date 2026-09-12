@@ -106,9 +106,25 @@ the UI, and it is worth trying first because it costs nothing. But two things
 only take effect in a development build:
 
 - **Cleartext HTTP.** Many Xtream panels are `http://host:8080`, not HTTPS.
-  `app.json` sets `android.usesCleartextTraffic` and the iOS
-  `NSAppTransportSecurity` keys for this; both are native manifest settings that
+  Android has blocked cleartext by default since API 28, so without this the app
+  cannot even authenticate. It is configured through the `expo-build-properties`
+  plugin on Android and `ios.infoPlist` on iOS — both native manifest settings
   Expo Go cannot apply. If your panel is HTTPS, Expo Go may be all you need.
+
+  **SDK 57 removed `android.usesCleartextTraffic`, `splash` and
+  `newArchEnabled` as config fields.** They are not ignored gracefully: the
+  config fails schema validation and the values never reach the native project,
+  so an APK built with them silently has no cleartext permission. Cleartext and
+  the splash screen now go through `expo-build-properties` and
+  `expo-splash-screen`. Verify any change to them with
+
+  ```bash
+  cd mobile && npx expo config --type introspect
+  ```
+
+  which prints the resolved native config — look for
+  `android:usesCleartextTraffic` in the manifest rather than trusting that
+  `app.json` was read.
 
   In Expo Go on iOS the symptom is specific and confusing: the channel list
   loads fine and the app can even fetch the HLS playlist itself, but the stream
