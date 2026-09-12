@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { InteractionManager } from 'react-native';
 import type { Catalog, Channel, NowNext } from '@iptv-ninja/core';
+
+import { runWhenIdle } from '../platform/scheduling';
 
 /** Requests in flight at once. Enough to fill a screen without flooding the panel. */
 const CONCURRENCY = 6;
@@ -44,7 +45,7 @@ export function useNowNext(
     // Let navigation transitions and the first paint finish before adding
     // network work; a half-drawn list that cannot be tapped is worse than a
     // list whose EPG arrives a moment later.
-    const interaction = InteractionManager.runAfterInteractions(() => {
+    const cancelScheduled = runWhenIdle(() => {
       void (async () => {
         for (let index = 0; index < wanted.length; index += CONCURRENCY) {
           if (cancelled) return;
@@ -71,7 +72,7 @@ export function useNowNext(
 
     return () => {
       cancelled = true;
-      interaction.cancel();
+      cancelScheduled();
     };
   }, [catalog, channels, enabled]);
 

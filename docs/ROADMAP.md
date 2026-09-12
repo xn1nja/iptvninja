@@ -99,7 +99,18 @@ If EPG ever needs to be faster, the next step is a persisted parse — write the
 `EpgIndex` to storage once and reuse it across launches — not a bigger
 synchronous parse.
 
-## 4. Explicitly out of scope for now
+## 4. Web target
+
+`npx expo start --web` builds and runs, but only as a UI harness: browsers block
+cross-origin calls to Xtream panels (which do not send CORS headers), and only
+Safari plays HLS from a plain `<video>` element.
+
+Making web genuinely usable would need `hls.js` wired into the player for
+non-Safari browsers, and a proxy to add CORS headers in front of the provider —
+which is a backend, so it belongs with the remote-list work above rather than
+on its own.
+
+## 5. Explicitly out of scope for now
 
 - The Tizen / webOS thin client. `/core` is kept clean so it can be built
   without a rewrite, and the boundary is enforced by

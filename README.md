@@ -157,6 +157,27 @@ Profiles in `eas.json`:
 - `preview` — standalone internal build; Android comes out as an installable APK
 - `production` — store build
 
+### Running in a browser
+
+```bash
+cd mobile
+npx expo start --web
+```
+
+**Web is for working on the UI, not for watching anything.** Two things block
+real use, and neither is a bug in this app:
+
+- **CORS.** A browser will not let the page call your provider's panel unless
+  the panel sends `Access-Control-Allow-Origin`. Xtream panels essentially never
+  do, so the channel list itself will usually fail to load. Native builds are
+  not subject to this.
+- **HLS.** `expo-video` on web is an HTML `<video>` element, and only Safari
+  plays HLS natively. Chrome, Edge and Firefox need `hls.js`, which is not
+  wired up here.
+
+Use web to iterate on screens and layout with a pasted M3U. Use a native build
+to test anything involving a real provider.
+
 ### Plugging in your own account
 
 Open the app → **Playlists** tab → **Add playlist or account**. Three ways in:
