@@ -1,5 +1,6 @@
 import { IptvError } from './errors';
 import { buildUrl, httpGetJson, httpGetText, normaliseBaseUrl, type HttpClientOptions } from './http';
+import { isHlsUrl } from './stream';
 import { decodeMaybeBase64 } from './text';
 import type {
   Category,
@@ -289,6 +290,20 @@ export class XtreamClient {
       .map((entry): Channel | null => {
         const streamId = asString(entry?.stream_id);
         if (!streamId) return null;
+
+        // Panels frequently set direct_source to the raw MPEG-TS endpoint, and
+        // trusting it breaks playback on iOS: AVFoundation cannot play a
+        // progressive TS live stream and fails with CoreMedia -12939, "byte
+        // range and no content length". Since panels set it on some channels
+        // and not others, honouring it produces a playlist where seemingly
+        // random channels refuse to play. Only take direct_source when it is
+        // already HLS; otherwise build the .m3u8 URL.
+        const directSource = asString(entry?.direct_source);
+        const streamUrl =
+          directSource && isHlsUrl(directSource)
+            ? directSource
+            : this.buildLiveStreamUrl(streamId);
+
         return {
           id: `live:${streamId}`,
           name: asString(entry?.name) ?? 'Unnamed',
@@ -297,7 +312,7 @@ export class XtreamClient {
           logo: asString(entry?.stream_icon),
           epgChannelId: asString(entry?.epg_channel_id),
           streamId,
-          streamUrl: asString(entry?.direct_source) ?? this.buildLiveStreamUrl(streamId),
+          streamUrl,
           number: asNumber(entry?.num),
           hasArchive: asNumber(entry?.tv_archive) === 1,
         };
@@ -325,6 +340,8 @@ export class XtreamClient {
           logo: asString(entry?.stream_icon),
           streamId,
           containerExtension: extension,
+          // Unlike live, a progressive file is what VOD actually is, so a
+          // direct_source here is fine to use as given.
           streamUrl: asString(entry?.direct_source) ?? this.buildVodStreamUrl(streamId, extension),
           number: asNumber(entry?.num),
           plot: asString(entry?.plot),

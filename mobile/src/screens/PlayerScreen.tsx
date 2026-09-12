@@ -179,7 +179,7 @@ export function PlayerScreen() {
       </Focusable>
 
       {isLoading ? (
-        <View pointerEvents="none" style={styles.loadingLayer}>
+        <View style={styles.loadingLayer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : null}
@@ -246,7 +246,7 @@ export function PlayerScreen() {
       ) : null}
 
       {overlayVisible ? (
-        <View style={styles.overlay} pointerEvents="box-none">
+        <View style={styles.overlay}>
           <View style={styles.topBar}>
             <Focusable
               accessibilityRole="button"
@@ -374,6 +374,7 @@ const styles = StyleSheet.create({
   },
   loadingLayer: {
     ...FILL,
+    pointerEvents: 'none',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -421,6 +422,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...FILL,
+    pointerEvents: 'box-none',
     justifyContent: 'space-between',
   },
   topBar: {

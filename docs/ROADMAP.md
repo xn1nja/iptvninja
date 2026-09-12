@@ -99,7 +99,37 @@ If EPG ever needs to be faster, the next step is a persisted parse — write the
 `EpgIndex` to storage once and reuse it across launches — not a bigger
 synchronous parse.
 
-## 4. Web target
+## 4. Stream URL rules
+
+Live streams are always played as HLS. Xtream panels expose the same channel at
+`/live/<user>/<pass>/<id>.m3u8` and `.ts`, and many also return a `direct_source`
+field pointing at the raw `.ts` endpoint.
+
+**Do not trust `direct_source` for live.** iOS AVFoundation cannot play a
+progressive MPEG-TS live stream and fails with CoreMedia `-12939`, "byte range
+and no content length". Panels set the field on some channels and not others, so
+honouring it makes a seemingly random subset of a playlist unplayable. The
+client keeps `direct_source` only when it is already HLS, and otherwise builds
+the `.m3u8` URL.
+
+VOD is the opposite case: a progressive file is exactly what it is, so
+`direct_source` is used as given there.
+
+Panels that genuinely only serve `.ts` are handled by the player's manual
+container swap, which is a deliberate user action rather than a default.
+
+Two different things end in `.m3u8` and are easy to confuse:
+
+| URL | What it is |
+| --- | --- |
+| `get.php?...&output=m3u8` | The **playlist**: a text file listing every channel |
+| `/live/<user>/<pass>/<id>.m3u8` | **Per-channel HLS**: the stream a player opens |
+
+Providers describing "m3u8" usually mean the first. The player needs the second,
+and a panel serving the raw `.ts` for a channel almost always serves the HLS
+variant of it too.
+
+## 5. Web target
 
 `npx expo start --web` builds and runs, but only as a UI harness: browsers block
 cross-origin calls to Xtream panels (which do not send CORS headers), and only
@@ -110,7 +140,7 @@ non-Safari browsers, and a proxy to add CORS headers in front of the provider �
 which is a backend, so it belongs with the remote-list work above rather than
 on its own.
 
-## 5. Explicitly out of scope for now
+## 6. Explicitly out of scope for now
 
 - The Tizen / webOS thin client. `/core` is kept clean so it can be built
   without a rewrite, and the boundary is enforced by

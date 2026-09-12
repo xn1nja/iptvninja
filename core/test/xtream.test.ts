@@ -274,3 +274,54 @@ test('builds playlist and stream URLs from the normalised base', () => {
     'http://example.com:8080/get.php?username=demo&password=secret&type=m3u_plus&output=m3u8',
   );
 });
+
+test('a panel-supplied MPEG-TS direct_source is ignored for live streams', async () => {
+  // Panels set direct_source on some channels and not others. Honouring a raw
+  // .ts endpoint makes those specific channels unplayable on iOS, where
+  // AVFoundation cannot handle a progressive TS live stream, which reads as
+  // "random channels are broken".
+  const { client } = clientWith([
+    {
+      match: 'get_live_streams',
+      body: [
+        {
+          name: 'Has TS direct source',
+          stream_id: 173,
+          direct_source: 'http://fastopen.live:8080/live/ninjahome/XjaDAMHyUr/173.ts',
+        },
+        {
+          name: 'Has HLS direct source',
+          stream_id: 174,
+          direct_source: 'http://cdn.example/hls/174.m3u8',
+        },
+        { name: 'No direct source', stream_id: 175 },
+      ],
+    },
+  ]);
+
+  const [tsSourced, hlsSourced, plain] = await client.getLiveStreams();
+
+  // Rebuilt as HLS rather than trusting the .ts endpoint.
+  assert.equal(tsSourced?.streamUrl, 'http://example.com:8080/live/demo/secret/173.m3u8');
+  // Already HLS, so the provider's own URL is kept — it may be a CDN edge.
+  assert.equal(hlsSourced?.streamUrl, 'http://cdn.example/hls/174.m3u8');
+  assert.equal(plain?.streamUrl, 'http://example.com:8080/live/demo/secret/175.m3u8');
+});
+
+test('VOD keeps its direct_source, where a progressive file is the point', async () => {
+  const { client } = clientWith([
+    {
+      match: 'get_vod_streams',
+      body: [
+        {
+          name: 'Dune',
+          stream_id: 555,
+          container_extension: 'mkv',
+          direct_source: 'http://cdn.example/movies/dune.mkv',
+        },
+      ],
+    },
+  ]);
+  const movie = (await client.getVodStreams())[0];
+  assert.equal(movie?.streamUrl, 'http://cdn.example/movies/dune.mkv');
+});
