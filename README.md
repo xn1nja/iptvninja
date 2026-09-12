@@ -167,9 +167,9 @@ Profiles in `eas.json`:
 - `preview` — standalone internal build; Android comes out as an installable APK
 - `production` — store build
 
-No profile sets an update `channel`, because `expo-updates` is not installed and
-EAS rejects a build that names a channel without it. Add the channels back if
-and when you add over-the-air updates.
+Each profile sets a matching update `channel`, so a build only receives OTA
+updates published to its own track. `expo-updates` has to be installed for this
+— EAS refuses a build that names a channel without it.
 
 ### An Android APK you can sideload
 
@@ -187,6 +187,13 @@ release build with the JS bundled in, so it does **not** need Metro running —
 unlike a development build, it works standalone.
 
 Android needs no paid account for any of this.
+
+**`app.json` is not fully committed here.** `eas build` writes three
+account-specific things into it the first time you run it: `extra.eas.projectId`,
+`updates.url`, and `runtimeVersion`. Those belong to whoever owns the EAS
+project, so they are left for you to commit rather than being baked into the
+repo — which also keeps the white-label case clean, since a re-skin for a
+different client gets its own EAS project.
 
 ### Running in a browser
 
