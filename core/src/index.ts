@@ -50,9 +50,11 @@ export { searchChannels, type SearchOptions } from './search';
 export {
   alternateLiveExtension,
   isHlsUrl,
+  parseCodecs,
   probeStream,
   resolveUrl,
   swapStreamExtension,
+  type CodecSummary,
   type StreamDiagnosis,
   type StreamProbe,
 } from './stream';

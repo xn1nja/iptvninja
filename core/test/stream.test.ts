@@ -5,6 +5,7 @@ import type { FetchLike } from '../src/http';
 import {
   alternateLiveExtension,
   isHlsUrl,
+  parseCodecs,
   probeStream,
   resolveUrl,
   swapStreamExtension,
@@ -133,4 +134,48 @@ test('a variant carrying no segments means the channel is sending nothing', asyn
   const result = await probeStream(LIVE, { fetchImpl });
   assert.equal(result.diagnosis, 'empty_playlist');
   assert.match(result.detail, /no video/i);
+});
+
+test('reads codecs the playlist declares', () => {
+  const h264 = parseCodecs('avc1.64001f,mp4a.40.2');
+  assert.deepEqual(h264.video, ['avc1.64001f']);
+  assert.deepEqual(h264.audio, ['mp4a.40.2']);
+  assert.equal(h264.hasHevc, false);
+  assert.equal(h264.hasAc3, false);
+
+  const hevc = parseCodecs('hvc1.1.6.L120.90,mp4a.40.2');
+  assert.equal(hevc.hasHevc, true);
+
+  const ac3 = parseCodecs('avc1.4d401f,ac-3');
+  assert.equal(ac3.hasAc3, true);
+  assert.equal(ac3.hasHevc, false);
+
+  assert.equal(parseCodecs('ec-3').hasAc3, true);
+});
+
+test('a probe surfaces the codecs so the cause can be named rather than guessed', async () => {
+  const master =
+    '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=3000000,CODECS="hvc1.1.6.L120.90,ac-3"\nvariant.m3u8\n';
+  const fetchImpl: FetchLike = async (url) => ({
+    ok: true,
+    status: 200,
+    text: async () =>
+      url.endsWith('variant.m3u8') ? '#EXTM3U\n#EXTINF:6.0,\nseg1.ts\n' : master,
+  });
+
+  const result = await probeStream(LIVE, { fetchImpl });
+  assert.equal(result.diagnosis, 'ok');
+  assert.equal(result.codecs?.hasHevc, true);
+  assert.equal(result.codecs?.hasAc3, true);
+});
+
+test('a playlist declaring no codecs reports none rather than inventing them', async () => {
+  const fetchImpl: FetchLike = async () => ({
+    ok: true,
+    status: 200,
+    text: async () => '#EXTM3U\n#EXTINF:6.0,\nseg1.ts\n',
+  });
+  const result = await probeStream(LIVE, { fetchImpl });
+  assert.equal(result.diagnosis, 'ok');
+  assert.equal(result.codecs, undefined);
 });

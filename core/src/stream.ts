@@ -18,6 +18,59 @@ export interface StreamProbe {
   status?: number;
   /** One sentence, safe to show a user. */
   detail: string;
+  /** Codecs the playlist declares, when it declares any. */
+  codecs?: CodecSummary;
+}
+
+export interface CodecSummary {
+  /** Raw CODECS attribute, e.g. `avc1.64001f,mp4a.40.2`. */
+  raw: string;
+  video: string[];
+  audio: string[];
+  /** HEVC/H.265. Apple only decodes it in fMP4, never in MPEG-TS segments. */
+  hasHevc: boolean;
+  /** AC-3 or E-AC-3. iPhones and iPads have no decoder for either. */
+  hasAc3: boolean;
+}
+
+/**
+ * Reads an HLS `CODECS` attribute into something a UI can talk about.
+ *
+ * Turns "the player rejected it, probably a codec" into naming the actual
+ * codec, which is the difference between a guess and an answer.
+ */
+export function parseCodecs(raw: string): CodecSummary {
+  const entries = raw
+    .split(',')
+    .map((entry) => entry.trim().replace(/^["']|["']$/g, ''))
+    .filter(Boolean);
+
+  const video: string[] = [];
+  const audio: string[] = [];
+
+  for (const entry of entries) {
+    const family = entry.split('.')[0]?.toLowerCase() ?? '';
+    if (['avc1', 'avc3', 'hvc1', 'hev1', 'vp09', 'av01', 'dvh1', 'dvhe'].includes(family)) {
+      video.push(entry);
+    } else if (['mp4a', 'ac-3', 'ec-3', 'opus', 'alac', 'flac'].includes(family)) {
+      audio.push(entry);
+    }
+  }
+
+  return {
+    raw,
+    video,
+    audio,
+    hasHevc: video.some((entry) => /^(hvc1|hev1|dvh1|dvhe)/i.test(entry)),
+    hasAc3: audio.some((entry) => /^(ac-3|ec-3)/i.test(entry)),
+  };
+}
+
+/** CODECS from the first variant of a master playlist, when present. */
+function declaredCodecs(playlist: string): CodecSummary | null {
+  const match = /#EXT-X-STREAM-INF[^\n]*?CODECS\s*=\s*"([^"]+)"/i.exec(playlist);
+  const raw = match?.[1];
+  return raw ? parseCodecs(raw) : null;
 }
 
 const HLS_TIMEOUT_MS = 8_000;
@@ -119,6 +172,7 @@ export async function probeStream(
       // A master playlist only names other playlists. Following one level is
       // what distinguishes "the channel is fine" from "the channel is listed
       // but dead", which look identical at the top level.
+      const codecs = declaredCodecs(body);
       const variant = firstVariantUri(body);
       if (variant) {
         const variantUrl = resolveUrl(url, variant);
@@ -138,6 +192,7 @@ export async function probeStream(
             url,
             diagnosis: 'ok',
             detail: 'The server is sending a valid, live HLS stream.',
+            ...(codecs ? { codecs } : {}),
           };
         } catch {
           return {

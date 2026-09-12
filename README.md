@@ -167,6 +167,27 @@ Profiles in `eas.json`:
 - `preview` — standalone internal build; Android comes out as an installable APK
 - `production` — store build
 
+No profile sets an update `channel`, because `expo-updates` is not installed and
+EAS rejects a build that names a channel without it. Add the channels back if
+and when you add over-the-air updates.
+
+### An Android APK you can sideload
+
+The quickest way to get a real, installable build without a device attached or
+Android Studio set up:
+
+```bash
+cd mobile
+eas build -p android --profile preview
+```
+
+EAS returns a download link for an `.apk`. Copy it to the phone and open it,
+allowing "install unknown apps" for whatever app you opened it from. This is a
+release build with the JS bundled in, so it does **not** need Metro running —
+unlike a development build, it works standalone.
+
+Android needs no paid account for any of this.
+
 ### Running in a browser
 
 ```bash

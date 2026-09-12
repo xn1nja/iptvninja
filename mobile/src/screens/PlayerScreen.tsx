@@ -228,11 +228,22 @@ export function PlayerScreen() {
               blocking plain http:// streams here regardless of this app&apos;s settings. Install a
               development build to rule that out.
             </Text>
+          ) : probe?.diagnosis === 'ok' && probe.codecs?.hasHevc ? (
+            <Text style={styles.errorHint}>
+              The stream is live, and the playlist declares H.265 ({probe.codecs.video.join(', ')}).
+              Apple decodes H.265 only in fMP4, never in the MPEG-TS segments providers use here, so
+              this channel cannot play on iOS.
+            </Text>
+          ) : probe?.diagnosis === 'ok' && probe.codecs?.hasAc3 ? (
+            <Text style={styles.errorHint}>
+              The stream is live, but its audio is {probe.codecs.audio.join(', ')}. iPhones and
+              iPads have no AC-3 decoder, so this channel cannot play on iOS.
+            </Text>
           ) : probe?.diagnosis === 'ok' ? (
             <Text style={styles.errorHint}>
-              The stream is live and reachable, so this is the player rejecting it — usually H.265
-              video or AC-3 audio, which iOS will not decode. Other channels from the same provider
-              should still work.
+              The stream is live and reachable, so the player is what rejected it. The playlist does
+              not say which codecs it uses; H.265 video and AC-3 audio are the usual causes on iOS.
+              Other channels from this provider should still work.
             </Text>
           ) : offerAlternate ? (
             <Text style={styles.errorHint}>
