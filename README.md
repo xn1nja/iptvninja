@@ -96,10 +96,21 @@ the UI, and it is worth trying first because it costs nothing. But two things
 only take effect in a development build:
 
 - **Cleartext HTTP.** Many Xtream panels are `http://host:8080`, not HTTPS.
-  `app.json` sets `android.usesCleartextTraffic` and iOS
-  `NSAppTransportSecurity.NSAllowsArbitraryLoads` for this; both are native
-  manifest settings that Expo Go cannot apply. If your panel is HTTPS, Expo Go
-  may be all you need.
+  `app.json` sets `android.usesCleartextTraffic` and the iOS
+  `NSAppTransportSecurity` keys for this; both are native manifest settings that
+  Expo Go cannot apply. If your panel is HTTPS, Expo Go may be all you need.
+
+  In Expo Go on iOS the symptom is specific and confusing: the channel list
+  loads fine and the app can even fetch the HLS playlist itself, but the stream
+  will not play. That is App Transport Security — `fetch` and AVPlayer are
+  governed separately. The player detects Expo Go and says so.
+
+  All four ATS keys are set to `true` deliberately. **iOS 10 and later ignore
+  `NSAllowsArbitraryLoads` as soon as any of the newer keys is present**, so a
+  config with only the media key would silently block the Xtream API calls,
+  and a config with only `NSAllowsArbitraryLoads` breaks the moment some other
+  plugin adds one of the others. Setting all of them means whichever key the OS
+  honours, the answer is the same.
 - **The `expo-video` plugin options** — background playback and
   picture-in-picture.
 
