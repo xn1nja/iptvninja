@@ -47,11 +47,16 @@ export function PlayerScreen() {
   const videoRef = useRef<React.ComponentRef<typeof VideoView>>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [streamUrl, setStreamUrl] = useState(channel.streamUrl ?? null);
+  // Rebuilt from the source rather than taken from the channel: a favourite
+  // saved before a URL-format change would otherwise keep playing the old URL
+  // forever.
+  const initialUrl = catalog?.resolveStreamUrl(channel) ?? channel.streamUrl ?? null;
+
+  const [streamUrl, setStreamUrl] = useState(initialUrl);
   const [probe, setProbe] = useState<StreamProbe | null>(null);
   const [probing, setProbing] = useState(false);
 
-  const player = useVideoPlayer(channel.streamUrl ?? null, (instance: VideoPlayer) => {
+  const player = useVideoPlayer(initialUrl, (instance: VideoPlayer) => {
     instance.loop = false;
     // Live streams have no meaningful position to restore; just start.
     instance.play();

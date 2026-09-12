@@ -36,6 +36,14 @@ export interface Catalog {
   getSeriesDetail(channel: Channel): Promise<SeriesDetail>;
   /** Preloads the XMLTV guide. Safe to skip; called lazily otherwise. */
   primeEpg(): Promise<void>;
+  /**
+   * The URL to play for a channel, rebuilt from the source rather than trusted.
+   *
+   * Favourites persist the whole channel, so a stored `streamUrl` can outlive
+   * the logic that produced it. Rebuilding here means a change to URL
+   * construction reaches saved channels instead of leaving them broken.
+   */
+  resolveStreamUrl(channel: Channel): string | null;
 }
 
 export interface OpenCatalogOptions extends HttpClientOptions {
@@ -238,6 +246,19 @@ class XtreamCatalog implements Catalog {
     }
     return this.client.getSeriesInfo(channel.seriesId);
   }
+
+  resolveStreamUrl(channel: Channel): string | null {
+    if (channel.streamId) {
+      if (channel.kind === 'live') return this.client.buildLiveStreamUrl(channel.streamId);
+      if (channel.kind === 'movie') {
+        return this.client.buildVodStreamUrl(
+          channel.streamId,
+          channel.containerExtension ?? 'mp4',
+        );
+      }
+    }
+    return channel.streamUrl ?? null;
+  }
 }
 
 /** M3U-backed catalogue. One playlist download, grouped by `group-title`. */
@@ -333,6 +354,11 @@ class M3uCatalog implements Catalog {
       'not_found',
       'Plain M3U playlists do not expose seasons and episodes.',
     );
+  }
+
+  resolveStreamUrl(channel: Channel): string | null {
+    // A playlist entry's URL is the only thing there is; nothing to rebuild.
+    return channel.streamUrl ?? null;
   }
 }
 

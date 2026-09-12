@@ -234,3 +234,59 @@ test('opening a catalog never downloads the XMLTV guide', async () => {
   assert.equal(requested.length, 1);
   assert.ok(!requested.some((url) => url.includes('xmltv')));
 });
+
+test('a saved channel gets its stream URL rebuilt rather than trusted', async () => {
+  // Favourites persist the whole channel, so a URL saved before a change to
+  // how URLs are built would otherwise keep playing the stale one forever.
+  const stale: Channel = {
+    id: 'live:173',
+    name: 'Alsat M',
+    kind: 'live',
+    streamId: '173',
+    streamUrl: 'http://fastopen.live:8080/live/demo/secret/173.ts',
+  };
+
+  const fetchImpl: FetchLike = async (url) => ({
+    ok: true,
+    status: 200,
+    text: async () =>
+      url.includes('player_api.php')
+        ? JSON.stringify({ user_info: { auth: 1, status: 'Active' } })
+        : '[]',
+  });
+
+  const source: Source = {
+    id: 'src_5',
+    name: 'Panel',
+    createdAt: 0,
+    config: {
+      kind: 'xtream',
+      serverUrl: 'http://example.com:8080',
+      username: 'demo',
+      password: 'secret',
+    },
+  };
+
+  const catalog = await openCatalog(source, { fetchImpl, deferEpg: true });
+  assert.equal(
+    catalog.resolveStreamUrl(stale),
+    'http://example.com:8080/live/demo/secret/173.m3u8',
+  );
+});
+
+test('an M3U channel keeps the URL its playlist gave it', async () => {
+  const source: Source = {
+    id: 'src_6',
+    name: 'Pasted',
+    createdAt: 0,
+    config: { kind: 'm3u', content: M3U_BODY },
+  };
+  const catalog = await openCatalog(source, {
+    deferEpg: true,
+    fetchImpl: async () => {
+      throw new Error('should not be called');
+    },
+  });
+  const channel = (await catalog.getChannels('live'))[0] as Channel;
+  assert.equal(catalog.resolveStreamUrl(channel), 'http://provider.example/live/u/p/1.m3u8');
+});
