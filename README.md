@@ -66,7 +66,9 @@ npm start            # → npx expo start in /mobile
 **Run every command from the repo root.** This is an npm workspaces monorepo:
 
 - `npm install` at the root is what creates the symlink `/mobile` uses to
-  resolve `@iptv-ninja/core`. Installing inside `/mobile` alone will not.
+  resolve `@iptv-ninja/core`. Installing inside `/mobile` alone will not, and it
+  ignores the root lockfile, so npm re-resolves versions and can pick ones the
+  Expo SDK does not accept.
 - `npm start` at the root forwards to `/mobile`. Do **not** run `npx expo start`
   at the root — Expo would treat the root as the app, find no `App.tsx`, fail
   with `Unable to resolve "../../App"`, and leave a stray `tsconfig.json`
@@ -79,6 +81,14 @@ If you would rather drive Expo directly, `cd mobile` first:
 cd mobile
 npx expo start
 ```
+
+**React versions are pinned exactly, not with carets.** Expo SDK 57 fixes
+`react` at `19.2.3`, and `react-dom` has to match it version-for-version: a
+`^19.2.3` range resolves to `19.3.0`, whose peer dependency demands
+`react@^19.3.0`, and the install fails with `ERESOLVE`. If you add a React-
+adjacent package, take the version from `expo/bundledNativeModules.json` rather
+than the registry's `latest`, or run `npx expo install <pkg>` which does that
+for you.
 
 Other useful commands, all from the repo root:
 
