@@ -285,6 +285,14 @@ panel. This is the one thing worth checking first on your own account.
 
 ### Stubbed, thin, or deliberately left out
 
+- **Some channels will not play on iOS, and cannot be made to.** iOS decodes
+  H.264/AAC in HLS; a channel encoded as H.265/HEVC, or carrying AC-3 or E-AC-3
+  audio, is rejected by AVFoundation no matter what this app does. The player
+  identifies this case: it confirms the stream is live and reachable, then says
+  the player is what rejected it. Providers mix codecs channel by channel, so
+  expect a minority of any large playlist to fail this way. Fixing it means
+  replacing the player engine with a VLC/ffmpeg-based one, not changing any
+  code here.
 - **Series on plain M3U playlists** — a flat M3U has no season/episode structure,
   so `getSeriesDetail` throws for M3U sources. Series browsing is Xtream-only.
 - **Catch-up / archive** — `tv_archive` is parsed off Xtream live streams and

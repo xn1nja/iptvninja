@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
@@ -69,8 +69,14 @@ export function PlayerScreen() {
   const cleartextBlocked = cleartextLikelyBlocked(streamUrl ?? '') && !hasAnyStreamPlayed();
 
   const alternate = streamUrl ? alternateLiveExtension(streamUrl) : null;
+  // Never offer MPEG-TS on iOS. AVFoundation cannot play a progressive TS live
+  // stream under any circumstances, so the button would be a guaranteed dead
+  // end — and the hint next to it says exactly that, which reads as nonsense.
+  const offerAlternate = alternate !== null && !(Platform.OS === 'ios' && alternate === 'ts');
   const alternateUrl =
-    streamUrl && alternate ? swapStreamExtension(streamUrl, alternate) : null;
+    streamUrl && alternate && offerAlternate
+      ? swapStreamExtension(streamUrl, alternate)
+      : null;
 
   // Providers fail in a lot of different ways and the player only ever reports
   // "playback failed", so ask the server directly what it is serving.
@@ -96,7 +102,13 @@ export function PlayerScreen() {
     if (!alternateUrl) return;
     setProbe(null);
     setStreamUrl(alternateUrl);
-    void player.replaceAsync(alternateUrl);
+    void (async () => {
+      await player.replaceAsync(alternateUrl);
+      // replaceAsync swaps the item but does not resume: the setup callback
+      // that starts playback only runs when the player is first created, so
+      // without this the swap silently lands on a paused player.
+      player.play();
+    })();
   }, [alternateUrl, player]);
 
   useEffect(() => {
@@ -217,10 +229,10 @@ export function PlayerScreen() {
               video or AC-3 audio, which iOS will not decode. Other channels from the same provider
               should still work.
             </Text>
-          ) : alternate ? (
+          ) : offerAlternate ? (
             <Text style={styles.errorHint}>
               {alternate === 'ts'
-                ? 'Some panels only serve MPEG-TS. Note that iOS can play HLS only, so TS is worth trying on Android rather than here.'
+                ? 'Some panels only serve MPEG-TS rather than HLS. Worth a try.'
                 : 'HLS is the format iOS can play, so it is worth trying if MPEG-TS failed.'}
             </Text>
           ) : null}
@@ -382,7 +394,9 @@ const styles = StyleSheet.create({
     ...FILL,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.overlay,
+    // Fully opaque: a half-transparent scrim let the player's own placeholder
+    // glyph sit behind the error text, which looked like a rendering fault.
+    backgroundColor: colors.background,
     padding: spacing(3),
     gap: spacing(1),
   },

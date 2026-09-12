@@ -129,7 +129,23 @@ Providers describing "m3u8" usually mean the first. The player needs the second,
 and a panel serving the raw `.ts` for a channel almost always serves the HLS
 variant of it too.
 
-## 5. Web target
+## 5. Codec coverage on iOS
+
+expo-video wraps AVFoundation on iOS, which decodes H.264/AAC in HLS and little
+else. Channels encoded as H.265/HEVC, or carrying AC-3/E-AC-3 audio, fail with
+the stream confirmed live â€” the player simply will not take them. Providers mix
+codecs per channel, so this shows up as a scattered minority of a playlist.
+
+The only real fix is a different decoder: a VLC-based player component
+(`react-native-vlc-media-player` or similar) used as a fallback when
+AVFoundation rejects a stream. That is a native dependency and rules out Expo
+Go, so it belongs with a development-build workflow rather than before one.
+
+MPEG-TS is a separate and non-negotiable case: AVFoundation cannot play a
+progressive TS live stream at all, which is why the player does not offer the
+container swap on iOS.
+
+## 6. Web target
 
 `npx expo start --web` builds and runs, but only as a UI harness: browsers block
 cross-origin calls to Xtream panels (which do not send CORS headers), and only
@@ -140,7 +156,7 @@ non-Safari browsers, and a proxy to add CORS headers in front of the provider â€
 which is a backend, so it belongs with the remote-list work above rather than
 on its own.
 
-## 6. Explicitly out of scope for now
+## 7. Explicitly out of scope for now
 
 - The Tizen / webOS thin client. `/core` is kept clean so it can be built
   without a rewrite, and the boundary is enforced by
